@@ -19,6 +19,7 @@
 #include "dsp_core/fft.h"
 #include "dsp_core/window.h"
 #include "dsp_core/ringbuffer.h"
+#include "audio_util/audio_util.h"
 
 #define SAMPLE_RATE     44100
 #define FFT_SIZE        1024               /* must be a power of two */
@@ -85,21 +86,25 @@ int main(void) {
         return 1;
     }
 
-    PaError err = Pa_Initialize();
+    PaError err = audio_initialize_quiet();
     if (err != paNoError) {
         fprintf(stderr, "PortAudio init failed: %s\n", Pa_GetErrorText(err));
         return 1;
     }
 
+    int device = audio_find_input_device();
+    if (device < 0) {
+        audio_print_no_input_device_help();
+        Pa_Terminate();
+        ringbuffer_free(&g_ring);
+        return 1;
+    }
+    const PaDeviceInfo *device_info = Pa_GetDeviceInfo(device);
+    PaStreamParameters input_params = { device, 1, paFloat32,
+        device_info->defaultLowInputLatency, NULL };
     PaStream *stream;
-    err = Pa_OpenDefaultStream(&stream,
-                                1,              /* mono input */
-                                0,              /* no output */
-                                paFloat32,
-                                SAMPLE_RATE,
-                                FFT_SIZE / 2,   /* frames per callback */
-                                audio_callback,
-                                NULL);
+    err = Pa_OpenStream(&stream, &input_params, NULL, SAMPLE_RATE,
+                        FFT_SIZE / 2, paNoFlag, audio_callback, NULL);
     if (err != paNoError) {
         fprintf(stderr, "Failed to open stream: %s\n", Pa_GetErrorText(err));
         Pa_Terminate();
