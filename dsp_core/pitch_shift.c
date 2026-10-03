@@ -223,7 +223,7 @@ pitch_shifter_t *pitch_shifter_create(void) {
     for (size_t j = 0; j < PS_FFT_SIZE; j++) {
         total += (double)ps->window[j] * (double)ps->window[j];
     }
-    ps->scale = (double)PS_HOP / total;
+    ps->scale = (double)PS_HOP / total; // = 2/3 for Hann @ 75% overlap (for further information, pls read report)
 
     return ps;
 }
